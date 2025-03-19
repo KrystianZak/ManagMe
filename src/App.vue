@@ -1,68 +1,82 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 
-// definicja interfejsu projektu
+// Interfejs projektu
 interface Project {
-  id: number,
-  name: string,
-  description: string
+  id: number;
+  name: string;
+  description: string;
 }
 
-// definicja reaktywnej tablicy projektów
-const projects = ref<Project[]>([]);
+// Klasa do obsługi localStorage
+class ProjectStorage {
+  private static key = "projects";
 
-// definicja zmiennych do dodawania projektu
-const newProjectName = ref<string>('');
-const newProjectDescription = ref<string>('');
-let projectIdCounter = 1
+  static getProjects(): Project[] {
+    const data = localStorage.getItem(this.key);
+    return data ? JSON.parse(data) : [];
+  }
 
-// definicja funkcji dodawnia projektu
+  static saveProjects(projects: Project[]) {
+    localStorage.setItem(this.key, JSON.stringify(projects));
+  }
+}
+
+// Definicja reaktywnej tablicy projektów
+const projects = ref<Project[]>(ProjectStorage.getProjects());
+const newProjectName = ref('');
+const newProjectDescription = ref('');
+let projectIdCounter = projects.value.length ? Math.max(...projects.value.map(p => p.id)) + 1 : 1;
+
+// Dodawanie projektu
 const createProject = () => {
-  // zabezpieczenie formularzu
-  if (!newProjectName.value.trim() || !newProjectName.value.trim()){
-    console.log("Please type project name and description!")
+  if (!newProjectName.value.trim() || !newProjectDescription.value.trim()) {
+    console.log("Please type project name and description!");
+    return;
   }
 
   const newProject: Project = {
     id: projectIdCounter++,
     name: newProjectName.value,
-    description: newProjectDescription.value
-  }
+    description: newProjectDescription.value,
+  };
 
   projects.value.push(newProject);
-  console.log("Added new project: ", newProject);
+  ProjectStorage.saveProjects(projects.value);
 
-  // reset pol formularza
   newProjectName.value = '';
   newProjectDescription.value = '';
-}
+  console.log("Added new project: ", newProject);
+};
 
-// definicja odczytywania projektu
+// Czytanie projektu (tylko logowanie do konsoli)
 const readProject = (id: number) => {
-  const projectToRead = projects.value.find(project => project.id === id);
-  if (projectToRead) {
-    console.log("Read project: ", projectToRead);
-  }
-}
+  const project = projects.value.find(p => p.id === id);
+  if (project) console.log("Read project: ", project);
+};
 
-// definicja funkcji aktualizacji projetku
+// Aktualizacja projektu
 const updateProject = (id: number) => {
-  const projectToUpdate = projects.value.find(project => project.id === id);
-  if (projectToUpdate) {
-    projectToUpdate.name = newProjectName.value;
-    projectToUpdate.description = newProjectDescription.value;
-    console.log("Updated project: ", projectToUpdate);
+  const project = projects.value.find(p => p.id === id);
+  if (project) {
+    project.name = newProjectName.value;
+    project.description = newProjectDescription.value;
+    ProjectStorage.saveProjects(projects.value);
+    console.log("Updated project: ", project);
   }
-}
+};
 
-// definicja funkcji usuwania projektu
+// Usuwanie projektu
 const deleteProject = (id: number) => {
-  const project = 
-  project.value = projects.value.filter(p => p.id !== id)
+  projects.value = projects.value.filter(p => p.id !== id);
+  ProjectStorage.saveProjects(projects.value);
   console.log("Deleted project with id: ", id);
-}
+};
 
-//
+// Pobieranie projektów z localStorage po odświeżeniu strony
+onMounted(() => {
+  projects.value = ProjectStorage.getProjects();
+});
 </script>
 
 <template>
@@ -82,8 +96,8 @@ const deleteProject = (id: number) => {
       <ul>
         <li v-for="project in projects" :key="project.id">
           <strong>ID: {{ project.id }}</strong> <br/>
-          <strong>Name: {{ project.name }} </strong> <br/>
-          <p>description: {{ project.description }}</p> <br/>
+          <strong>Name: {{ project.name }}</strong> <br/>
+          <p>Description: {{ project.description }}</p> <br/>
           <button @click="updateProject(project.id)">UPDATE</button>
           <button @click="deleteProject(project.id)">DELETE</button>
         </li>
